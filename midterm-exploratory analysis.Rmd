@@ -1,0 +1,548 @@
+---
+title: "midterm-exloratory analysis"
+author: "Guangjin Zhou"
+date: "March 8, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## libraies
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+library(plyr)
+library(gridExtra)
+library(gmodels)
+library(grid)
+library(vcd)
+library(scales)
+library(pander)
+library(rpart)
+library(partykit)
+library(randomForest)
+```
+
+
+# 1 Data
+
+## Train data
+
+### Load train data
+
+```{r}
+train<-read.csv('C:/Users/gxz25/Documents/471midterm/census_train.csv');head(train)
+```
+
+### Structure
+
+```{r}
+str(train)
+```
+
+### Missingness check
+
+```{r}
+apply(is.na(train),2, sum)
+```
+
+## Test data
+
+### Load test data
+
+```{r}
+test<-read.csv('C:/Users/gxz25/Documents/471midterm/census_test.csv');head(test)
+```
+
+### Structure
+
+```{r}
+str(test)
+```
+
+### Missingness check
+
+```{r}
+apply(is.na(test),2, sum)
+```
+
+
+## Outcome
+
+### Table summary
+
+```{r}
+t1<-table(train$income, useNA="always");t1
+rate1<-round(100*prop.table(t1),2)
+pander(rate1)
+```
+
+
+
+### Graphic summary
+
+```{r}
+prop.table(table(train$income))
+ggplot(data = train, aes(x = train$income, fill = train$income)) + 
+  geom_bar(mapping = aes(y = (..count..)/sum(..count..))) +
+  geom_text(mapping = aes(label = scales::percent((..count..)/sum(..count..)),
+                      y = (..count..)/sum(..count..) ), 
+            stat = "count",
+            vjust = -.1) +
+  labs(x = "Income", 
+       y = "Percent",
+       fill = "Income") +
+  scale_y_continuous(labels = percent)
+```
+
+
+From train data set of 25000, 76% people make less or equal to 50K income, while 24% people make more  than 50K. 
+
+
+## Age predictor
+
+
+### Number summary 
+
+```{r}
+fivenum(train$age); summary(train$age)
+```
+
+The minimum sample age of train dataset is 17, and the minimum sample age is 90.   The median age is 37, and the mean age is 38.6.  
+
+
+### Graphic summary
+
+```{r}
+qplot(x = train$age, 
+      data = train, 
+      binwidth = 5, 
+      color = I('black'), 
+      fill = I('cyan'),
+      xlab = "Age",
+      ylab = "Count",
+      main = "Histogram of Age", breaks = seq(0, 100, 2))   
+  
+```
+
+## Gender
+
+### Table summary
+
+```{r}
+t2<-table(train$sex, useNA="always");t2
+rate2<-round(100*prop.table(t2),2)
+pander(rate2)
+```
+
+
+### Graphic summary
+
+```{r}
+prop.table(table(train$sex))
+ggplot(data = train, aes(x = train$sex, fill = train$sex)) + 
+  geom_bar(mapping = aes(y = (..count..)/sum(..count..))) +
+  geom_text(mapping = aes(label = scales::percent((..count..)/sum(..count..)),
+                      y = (..count..)/sum(..count..) ), 
+            stat = "count",
+            vjust = -.1) +
+  labs(x = "Gender", 
+       y = "Percent",
+       fill = "sex") +
+  scale_y_continuous(labels = percent)
+```
+
+
+From train data set, 67.1% sample of train dataset are male, and female only accounts for 32.9%. 
+
+## Education 
+
+### Table summary
+
+```{r}
+t3<-table(train$education, useNA="always");t3
+rate3<-round(100*prop.table(t3),2)
+pander(rate3)
+```
+
+From the summary table, the top three levels are: 32.3% of sample have high school education, 22.3% have some college education, and 16.4% have a bachelor degree. 
+
+
+### Graphic summary
+
+```{r}
+prop.table(table(train$education))
+ggplot(data = train, aes(x = train$education, fill = train$education)) + 
+  geom_bar(mapping = aes(y = (..count..)/sum(..count..))) +
+  geom_text(mapping = aes(label = scales::percent((..count..)/sum(..count..)),
+                      y = (..count..)/sum(..count..) ), 
+            stat = "count",
+            vjust = -.1) +
+  labs(x = "Education", 
+       y = "Percent",
+       fill = "education") +
+  scale_y_continuous(labels = percent)
+```
+
+## Marital status
+
+### Table summary
+
+```{r}
+t4<-table(train$marital.status, useNA="always");t4
+rate4<-round(100*prop.table(t4),2)
+pander(rate4)
+```
+
+From above table from train data set, we can see 46% people are married couple, 33% are never married, 14% people are divrced.
+
+### Graphic summary
+
+```{r}
+prop.table(table(train$marital.status))
+ggplot(data = train, aes(x = train$marital.status, fill = train$marital.status)) + 
+  geom_bar(mapping = aes(y = (..count..)/sum(..count..))) +
+  geom_text(mapping = aes(label = scales::percent((..count..)/sum(..count..)),
+                      y = (..count..)/sum(..count..) ), 
+            stat = "count",
+            vjust = -.1) +
+  labs(x = "Marital status", 
+       y = "Percent",
+       fill = "Marital status") +
+  scale_y_continuous(labels = percent)
+```
+
+## occupation
+
+### Table summary
+
+```{r}
+t5<-table(train$occupation, useNA="always");t5
+rate5<-round(100*prop.table(t5),2)
+pander(rate5)
+```
+
+From above table from train data set, we can see 46% people are married couple, 33% are never married, 14% people are divrced.
+
+### Graphic summary
+
+```{r}
+prop.table(table(train$occupation))
+ggplot(data = train, aes(x = train$occupation, fill = train$occupation)) + 
+  geom_bar(mapping = aes(y = (..count..)/sum(..count..))) +
+  geom_text(mapping = aes(label = scales::percent((..count..)/sum(..count..)),
+                      y = (..count..)/sum(..count..) ), 
+            stat = "count",
+            vjust = -.1) +
+  labs(x = "Occupation", 
+       y = "Percent",
+       fill = "Occupation") +
+  scale_y_continuous(labels = percent)
+```
+
+## Relationship
+
+### Table summary
+
+```{r}
+t6<-table(train$relationship, useNA="always");t6
+rate6<-round(100*prop.table(t6),2)
+pander(rate6)
+```
+
+From above table from train data set, we can see 40% family are husband and wife, 25% are not in a family relationship.
+
+### Graphic summary
+
+```{r}
+prop.table(table(train$relationship))
+ggplot(data = train, aes(x = train$relationship, fill = train$relationship)) + 
+  geom_bar(mapping = aes(y = (..count..)/sum(..count..))) +
+  geom_text(mapping = aes(label = scales::percent((..count..)/sum(..count..)),
+                      y = (..count..)/sum(..count..) ), 
+            stat = "count",
+            vjust = -.1) +
+  labs(x = "Family relationship", 
+       y = "Percent",
+       fill = "Family relationship") +
+  scale_y_continuous(labels = percent)
+```
+
+## Race
+
+### Table summary
+
+```{r}
+t7<-table(train$race, useNA="always");t7
+rate7<-round(100*prop.table(t7),2)
+pander(rate7)
+```
+
+From above table from train data set, we can see 85% people are white, 9% are black.
+
+### Graphic summary
+
+```{r}
+prop.table(table(train$race))
+ggplot(data = train, aes(x = train$race, fill = train$race)) + 
+  geom_bar(mapping = aes(y = (..count..)/sum(..count..))) +
+  geom_text(mapping = aes(label = scales::percent((..count..)/sum(..count..)),
+                      y = (..count..)/sum(..count..) ), 
+            stat = "count",
+            vjust = -.1) +
+  labs(x = "Race", 
+       y = "Percent",
+       fill = "Race") +
+  scale_y_continuous(labels = percent)
+```
+
+## capital gain predictor
+
+
+### Number summary 
+
+```{r}
+fivenum(train$capital.gain); summary(train$capital.gain)
+```
+
+The  mean capital gain is 1074.  Most of people don't have capital gain.
+
+
+### Graphic summary
+
+```{r}
+qplot(x = train$capital.gain, 
+      data = train, 
+      binwidth = 0.01, 
+      color = I('black'), 
+      fill = I('pink'),
+      xlab = "Capital gain",
+      ylab = "Count",
+      main = "Histogram of capital gain", breaks = seq(0, 100, 2))   
+  
+```
+
+## Work hour predictor
+
+
+### Number summary 
+
+```{r}
+fivenum(train$hours.per.week); summary(train$hours.per.week)
+```
+
+The median work hour is 40, and average working hour is 40 hour.  
+
+
+### Graphic summary
+
+```{r}
+qplot(x = train$hours.per.week, 
+      data = train, 
+      binwidth = 1, 
+      color = I('black'), 
+      fill = I('blue'),
+      xlab = "Weekly working hour",
+      ylab = "Count",
+      main = "Histogram of weekly working hour", breaks = seq(0, 100, 2))   
+  
+```
+
+# 2 The exploratory analysis of outcome (income) and predictors
+
+## Correlation of race and income 
+
+```{r}
+chisq.test(train$race, train$income)
+   
+```
+
+```{r}
+CrossTable(train$race, train$income, 
+           prop.chisq = TRUE,
+           chisq = TRUE)
+```
+
+Therefore, based on above test, at  the 0.05 significance level, there is strong indication that “race” and “income” are correlated.
+
+## Correlation between workclass and income
+
+```{r}
+chisq.test(table(train$workclass, train$income)) 
+```
+
+```{r}
+CrossTable(train$workclass, train$income, prop.chisq = TRUE, chisq = TRUE)
+```
+
+Therefore, based on above test, at  the 0.05 significance level, there is strong indication that “workclass” and “income” are correlated. Almost 70% peope working in fedaral govement make more than 50K. 34% peope working in private entity make more than 50K. 
+
+## Correlation between occupation and income
+
+```{r}
+chisq.test(table(train$occupation, train$income)) 
+```
+
+```{r}
+CrossTable(train$occupation, train$income, prop.chisq = TRUE, chisq = TRUE)
+```
+Therefore, based on above test, at  the 0.05 significance level, there is strong indication that “occupation” and “income” are correlated.
+
+##  Correlation between marital status and income
+
+```{r}
+chisq.test(table(train$marital.status, train$income)) 
+```
+
+```{r}
+CrossTable(train$marital.status, train$income, prop.chisq = TRUE, chisq = TRUE)
+```
+
+
+## Correlation between family relationship and income
+
+```{r}
+chisq.test(table(train$relationship, train$income)) 
+```
+
+```{r}
+CrossTable(train$relationship, train$income, prop.chisq = TRUE, chisq = TRUE)
+```
+ 
+
+## Correlation between native_region  and income   
+
+```{r}
+chisq.test(table(train$native.country, train$income)) 
+```
+
+```{r}
+CrossTable(train$native.country, train$income, prop.chisq = TRUE, chisq = TRUE)
+```
+
+89.6% people form train data set is originally come from United states. 
+
+
+## T test analysis of age  and income 
+
+```{r}
+t.test(age~income, data=train)
+```
+
+```{r}
+ggplot(data = train, aes(age, fill = income)) + 
+  geom_density(alpha = 0.2)+ggtitle("Age differs between income")
+```
+
+The mean age of people who make more than 50K are 44 year old, majority of are from 25-60 year old. The mean age of people who make less or equal to 50K are 37 year old, large proportion of them are under 25 year old.
+
+## T test analysis of work hour per week  and income 
+
+```{r}
+t.test(hours.per.week~income, data=train)
+```
+
+```{r}
+ggplot(data = train, aes(hours.per.week, fill = income)) + 
+  geom_density(alpha = 0.2)+ggtitle("Work hour per week differs between income")
+```
+
+The mean weekly work hour of people who make more than 50K are 46 hours. The mean weekly work hour of people who make less or equal to 50K are 39 hour, large proportion of both groups work 35~40 hour per week.
+
+## T test analysis of capital gain  and income 
+
+```{r}
+t.test(capital.gain~income, data=train)
+```
+
+The mean capital gain of people who make more than 50K are 4013. The meancapital gain of people who make less or equal to 50K are 146, much less than the higher income class.
+
+
+## T test analysis of capital loss  and income 
+
+```{r}
+t.test(capital.loss~income, data=train)
+```
+
+The mean capital loss of people who make more than 50K are 200. The meancapital loss of people who make less or equal to 50K are 53. This suggests that people who earn high income have higher capital gain and loss than those of low income. So the high income have certain capital risk, but the average capital gain (4013) is muhc larger than average capital loss (200) the higher income class.
+
+# 3 TREE model
+
+## Classification tree with income as outcome  
+
+```{r}
+cart1 <- rpart(formula = income ~ ., data=train, method='class', control=rpart.control(cp=.0001, minbucket=11, maxdepth=5, xval=10))
+cart1
+```
+
+## Tree plot 
+
+```{r}
+plot(cart1,uniform=T); text(cart1, all=T, use.n=T) 
+```
+
+
+## Tree prune
+
+```{r}
+cart2 <- prune(cart1, cp=.005)
+cart2
+```
+
+
+## identify the best choice of cp, and prune 
+
+```{r}
+bestcp1 <- cart1$cptable[which.min( cart1$cptable[,"xerror"]),"CP"];   bestcp1
+prune1 <- prune(cart1, cp = bestcp1);prune1
+```
+
+## Graphic show of tree
+
+
+```{r}
+cart3 <- as.party(prune1)
+plot(cart3,gp=gpar(cex=.8), tnex=2, tp_args=list(fill=c("black", "white"), id=F),ip_args=list(fill="lightblue", gp=gpar(cex=.8)))
+ 
+```
+
+The CART model suggests that relationship is the most important factor contributing to binary outcome income. The other predictors such as capital gain, age, education, occupation, capital gain and loss, contribute to income from CART model. 
+
+I summarized four branches which pridict higher income:
+
+A, node 1-2:  the splitting variables are relationship, capital gain and occupation. There is very higher prediction for 246 people who have relationship ( not in a family, other relative, has child), capital gain more than 7073  and occupation as craft-repair will make more than 50K. 
+
+B, node 1-5-13: the splitting variables are relationship, education and capitial gain. There is very higher prediction for 511 people who have relationship (husband and wife), education (association above) and capital gain more than 5059 will make more than 50K. 
+
+C, node 1-5-13-14: the splitting variables are relationship, education and capital gain and occupation. There is very higher prediction for 2379 people who have relationship (husband and wife), education (association above), capital gain more than 5059 and occupation with professional specialty will make more than 50K. 
+
+
+D, node 1-5-6: the splitting variables are relationship, education and capital gain. There is very higher prediction for 401 people who have a relationship (husband and wife), education (association above), capital gain more than 5059, will make more than 50K.
+
+
+
+## Confusion matrix of train model
+
+```{r}
+head(predict(cart1))  
+table(train$income, predict(cart1, type="class"))  
+```
+
+
+# 4 randomForest model
+
+## An random forest model with 2000 trees
+
+```{r}
+rf.model <- randomForest(income ~., data=train,ntree=2000, maxnodes=64, proximity=F,na.action=na.roughfix); rf.model
+```
+
+### variables importance 
+
+```{r}
+varImpPlot(rf.model)
+```
+
+The random forest model suggests that relationship is the most important factor contributing to binary outcome income. Then marital status, capital gain are very important variables. Next, education, occupation, age, capital loss and weekly work hours also contribute to the model. But race, workclass, native country and gender contribute less to the model. 

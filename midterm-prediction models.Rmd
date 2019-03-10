@@ -1,0 +1,287 @@
+---
+title: "midterm-prediction models"
+author: "Guangjin Zhou"
+date: "March 8, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## libraies
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+library(plyr)
+library(gridExtra)
+library(gmodels)
+library(grid)
+library(vcd)
+library(scales)
+library(pander)
+library(rpart)
+library(partykit)
+library(randomForest)
+
+library(GoodmanKruskal)
+
+```
+
+
+# 1 Data
+
+## Train data
+
+### Load train data
+
+```{r}
+train<-read.csv('C:/Users/gxz25/Documents/471midterm/census_train.csv');head(train)
+```
+
+### Structure
+
+```{r}
+str(train)
+```
+
+
+## Test data
+
+### Load test data
+
+```{r}
+test<-read.csv('C:/Users/gxz25/Documents/471midterm/census_test.csv');head(test)
+```
+
+## education as ordered factor
+ 
+
+```{r}
+train$education<-factor(train$education, ordered = TRUE,levels=c("Preschool","1st-4th","5th-6th", "7th-8th", "9th","10th", "11th", "12th", "HS-grad", "Prof-school", "Assoc-acdm", "Assoc-voc","Some-college","Bachelors","Masters", "Doctorate"))      
+levels(train$education)
+```
+
+```{r}
+test$education<-factor(test$education, ordered = TRUE,levels=c("Preschool","1st-4th","5th-6th", "7th-8th", "9th","10th", "11th", "12th", "HS-grad", "Prof-school", "Assoc-acdm", "Assoc-voc","Some-college","Bachelors","Masters", "Doctorate"))      
+levels(test$education)
+```
+
+
+# 2 TREE model
+
+## Classification tree with income as outcome  
+
+```{r}
+cart1 <- rpart(formula = income ~ ., data=train, method='class', control=rpart.control(cp=.0001, minbucket=11, maxdepth=5, xval=10))
+cart1
+```
+
+## Tree plot 
+
+```{r}
+plot(cart1,uniform=T); text(cart1, all=T, use.n=T) 
+```
+
+
+
+## Tree prune
+
+```{r}
+cart2 <- prune(cart1, cp=.005)
+cart2
+```
+
+
+## identify the best choice of cp, and prune 
+
+```{r}
+bestcp1 <- cart1$cptable[which.min( cart1$cptable[,"xerror"]),"CP"];   bestcp1
+prune1 <- prune(cart1, cp = bestcp1);prune1
+```
+
+## Graphic show of tree
+
+
+```{r}
+cart3 <- as.party(prune1)
+plot(cart3,gp=gpar(cex=.8), tnex=2, tp_args=list(fill=c("black", "white"), id=F),ip_args=list(fill="lightblue", gp=gpar(cex=.8)))
+ 
+```
+
+
+ 
+The CART model suggests that relationship is the most important factor contributing to binary outcome income. The other predictors such as capital gain, age, education, occupation, capital gain and loss, contribute to income from CART model. 
+
+I summarized four branches which pridict higher income:
+
+A, node 1-2:  the splitting variables are relationship, capital gain and occupation. There is very higher prediction for 246 people who have relationship ( not in a family, other relative, has child), capital gain more than 7073  and occupation as craft-repair will make more than 50K. 
+
+B, node 1-5-13: the splitting variables are relationship, education and capitial gain. There is very higher prediction for 511 people who have relationship (husband and wife), education (association above) and capital gain more than 5059 will make more than 50K. 
+
+C, node 1-5-13-14: the splitting variables are relationship, education and capital gain and occupation. There is very higher prediction for 2379 people who have relationship (husband and wife), education (association above), capital gain more than 5059 and occupation with professional specialty will make more than 50K. 
+
+
+D, node 1-5-6: the splitting variables are relationship, education and capital gain. There is very higher prediction for 401 people who have a relationship (husband and wife), education (association above), capital gain more than 5059, will make more than 50K.
+
+
+
+## Confusion matrix of train model to check prediction accuracy
+
+```{r}
+head(predict(cart1))  
+table(train$income, predict(cart1, type="class"))  
+```
+
+The error rate is (721+2995)/(18281+3003)=0.17. 83% accuracy is not so bad.
+
+Summary: I fited a CART model with 59 nodes and did the prune with bestCP value 0.0001. And I got 29 nodes tree after the prune. The error rate is (721+2995)/(18281+3003)=0.17.
+
+# 3 randomForest model
+
+## An random forest model with 2000 trees
+
+```{r}
+rf.model <- randomForest(income ~., data=train,ntree=2000, maxnodes=64, proximity=F,na.action=na.roughfix); rf.model
+```
+
+### variables importance 
+
+```{r}
+varImpPlot(rf.model)
+```
+
+The random forest model suggests that relationship is the most important factor contributing to binary outcome income. Then marital status, capital gain are very important variables. Next, education, occupation, age, capital loss and weekly work hours also contribute to the model. But race, workclass, native country and gender contribute less to the model. 
+
+# 4 Generalized model
+
+
+
+
+
+## Relaod the data  
+
+```{r}
+train<-read.csv('C:/Users/gxz25/Documents/471midterm/census_train.csv') 
+test<-read.csv('C:/Users/gxz25/Documents/471midterm/census_test.csv') 
+```
+
+
+## drop the trouble varailbe workclass, not sure why levels are not equal.
+
+```{r}
+train$workclass<-NULL; test$workclass<-NULL
+```
+
+
+## A full model
+
+```{r}
+covariates <- paste("age", "education",
+                    "marital.status", "occupation", "relationship",
+                    "race", "sex", "native.country", "hours.per.week",
+                    "capital.gain", "capital.loss", sep = "+")
+
+form <- as.formula(paste("income ~", covariates))
+
+start_time <- proc.time()
+fm <- glm(formula = form,
+                 data =train, 
+                 family = binomial(link = "logit"),
+                 x = TRUE)
+
+
+```
+
+
+
+
+
+### Full model coeffecients
+
+```{r}
+summary(fm)$coefficients[,1:2]
+```
+
+### Full model fit Parameters
+
+```{r}
+AIC(fm); BIC(fm); length(fm)
+```
+
+### High collinearity between numbric variable education.num and factor variable education
+
+```{r}
+summary(lm(education.num~education, data=train))
+```
+
+So education.num and education varialbes are identical. I need to remove them from model.
+
+### Use GKtauDataframe to get correlation matrix plot
+
+
+```{r}
+GKmatrix <- GKtauDataframe(train[, c("age",
+                                        "education", 
+                                        "marital.status", 
+                                        "occupation", "relationship",
+                                        "race", "sex", "hours.per.week",
+                                        "native.country", "capital.gain",
+                                        "capital.loss")])
+
+plot(GKmatrix)
+```
+
+
+Correlation between relationship and marital_status is 0.59, Correlation between relationship and sex is 0.42. These are collearilzed variales.
+
+
+
+
+### GLM model confusion matrix to test the fitness
+
+```{r}
+predicted.probs <- predict(fm, type = "response")
+predicted.income.train <- ifelse(predicted.probs > 0.5, " >50K", " <=50K")
+
+mean(predicted.income.train == train$income)
+```
+
+This means there are 85% match between observed and predicted values, i.e. accuracy.
+
+
+stat.log.train <- caret::confusionMatrix(data = predicted.income.train, 
+                                  reference = test$income,
+                                  positive = levels(test$income)[2])
+
+stat.log.train
+
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction  <=50K  >50K
+     <=50K  21075  2978
+     >50K    1579  4530
+                                          
+               Accuracy : 0.8489          
+                 95% CI : (0.8448, 0.8529)
+    No Information Rate : 0.7511          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.5691          
+ Mcnemar's Test P-Value : < 2.2e-16       
+                                          
+            Sensitivity : 0.6034          
+            Specificity : 0.9303          
+         Pos Pred Value : 0.7415          
+         Neg Pred Value : 0.8762          
+             Prevalence : 0.2489          
+         Detection Rate : 0.1502          
+   Detection Prevalence : 0.2025          
+      Balanced Accuracy : 0.7668          
+                                          
+       'Positive' Class :  >50K           
+            
+            
+So the sensitivity is 60.34% and the specificity is 93.03%.                                   
